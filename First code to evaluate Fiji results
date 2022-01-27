@@ -1,0 +1,58 @@
+# -*- coding: utf-8 -*-
+
+# This code takes in input a tab from Fiji with the coordinates of every division (plugin 3D Local Maxima)
+# and plot them with the number of the detection (intensity decreasing)
+# output : sequence of images to assemble on Fiji and superimpose with the input image
+
+from skimage import  io, draw
+io.use_plugin('pil')
+import pandas as pd
+from PIL import Image, ImageFont, ImageDraw
+
+font = ImageFont.truetype("arial.ttf", 20)
+stack_length=141
+bin_factor_xy=4
+
+input_file = r"C:\Users\gros\Desktop\18012022_divisiondetection\27012022_thresholding\Results.csv" #file imported from Fiji output 'Local Maxima 3D"
+positions_divisions = pd.read_csv(input_file, header = 0)
+positions_divisions = positions_divisions._get_numeric_data()
+nbdiv_detected=positions_divisions.shape[0]
+
+#new list with the coordinates in a 1204x1024 image
+positions_divisions_1024=positions_divisions.copy()
+for index in range (nbdiv_detected):
+    positions_divisions_1024['X'][index]=positions_divisions_1024['X'][index]*bin_factor_xy
+    positions_divisions_1024['Y'][index]=positions_divisions_1024['Y'][index]*bin_factor_xy
+
+
+for i in range (stack_length):
+    z=i+1
+    print('z=',z)
+    
+    #import the image at the current z
+    path_imseq=r"C:\Users\gros\Desktop\18012022_divisiondetection\imseq\ph3_"+'%03d' %i+ ".tif"
+    im=io.imread(path_imseq)
+
+    #draw a circle at the given coordinates (on 5 images before and 5 images after detection)
+    for j in range (nbdiv_detected):
+        numdiv=j+1
+        if positions_divisions_1024['Z'][j]>z-5 and positions_divisions_1024['Z'][j]<z+5  :
+            circle_x, circle_y = draw.disk((positions_divisions_1024['Y'][j],positions_divisions_1024['X'][j]),10)
+            for k in range (len(circle_x)):
+                im[circle_x[k], circle_y[k]] = 65535
+          
+    
+    im_Image=Image.fromarray(im)
+    imagedraw = ImageDraw.Draw(im_Image)
+        
+    #plot the right number next to the circle
+    for j in range (nbdiv_detected):
+        numdiv=j+1
+        if positions_divisions_1024['Z'][j]>z-5 and positions_divisions_1024['Z'][j]<z+5  :
+            imagedraw.text((positions_divisions_1024['X'][j]+30, positions_divisions_1024['Y'][j]), str(numdiv), 255, font=font)
+        
+    #fig, ax = plt.subplots(1,1)             
+    #ax.imshow(im_copy);
+    image = Image.fromarray(im)
+    #im.show()
+    im_Image.save(r"C:\Users\gros\Desktop\18012022_divisiondetection\\27012022_thresholding\\imseq_withdivandindex\ph3_"+'%03d' %i+ "withdivandindex.tif")
